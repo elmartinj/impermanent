@@ -1,8 +1,9 @@
 from __future__ import annotations
-from datetime import date
-from dateutil.relativedelta import relativedelta
 
+from datetime import date
 from pathlib import Path
+
+from dateutil.relativedelta import relativedelta
 
 ROOT = Path(__file__).resolve().parents[3]
 DATA_ROOT = ROOT / "data" / "caiso"

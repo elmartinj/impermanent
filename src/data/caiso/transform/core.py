@@ -30,9 +30,7 @@ def transform_caiso(
                     & (frame["NODE"].isin(NODES))
                 ]
 
-                frames.append(
-                    frame[["NODE", "INTERVALSTARTTIME_GMT", "MW"]]
-                )
+                frames.append(frame[["NODE", "INTERVALSTARTTIME_GMT", "MW"]])
 
     if not frames:
         raise RuntimeError(f"No CAISO ZIP files found in {raw_dir}")

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import argparse
+import zipfile
 from datetime import datetime, timedelta
 from pathlib import Path
-import zipfile
 
 import requests
 from bs4 import BeautifulSoup
