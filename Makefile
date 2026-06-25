@@ -57,3 +57,13 @@ leaderboard: # Build leaderboard parquet from all evaluation parquets
 .PHONY: update-cenace-data
 update-cenace-data:
 	$(MODAL) src.data.cenace.modal_app --execution-date $(EXECUTION_DATE)
+
+## CENACE Forecast/Evaluation
+
+.PHONY: update-cenace-forecast
+update-cenace-forecast:
+	$(MODAL) src.forecast.cenace.modal_app::forecast --cutoff $(CUTOFF)
+
+.PHONY: update-cenace-evaluate
+update-cenace-evaluate:
+	$(MODAL) src.forecast.cenace.modal_app::evaluate --cutoff $(CUTOFF)

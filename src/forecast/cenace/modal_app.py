@@ -41,12 +41,11 @@ volume = {
     volumes=volume,
     timeout=60 * 30,
 )
-def run_one_model(cutoff: str, model: str) -> tuple[str, str, str | None]:
+def run_forecast_model(cutoff: str, model: str) -> tuple[str, str, str | None]:
     import os
 
     os.environ["CENACE_DATA_ROOT"] = CENACE_DATA_ROOT
 
-    from src.evaluation.cenace.core import run_evaluation
     from src.forecast.cenace.core import run_forecast
 
     try:
@@ -56,6 +55,24 @@ def run_one_model(cutoff: str, model: str) -> tuple[str, str, str | None]:
             h=24,
             max_window_size=24 * 30,
         )
+        return model, str(forecast_path), None
+    except Exception as exc:
+        return model, "", repr(exc)
+
+
+@app.function(
+    image=image,
+    volumes=volume,
+    timeout=60 * 30,
+)
+def run_evaluation_model(cutoff: str, model: str) -> tuple[str, str, str | None]:
+    import os
+
+    os.environ["CENACE_DATA_ROOT"] = CENACE_DATA_ROOT
+
+    from src.evaluation.cenace.core import run_evaluation
+
+    try:
         metrics_path = run_evaluation(
             cutoff=cutoff,
             model=model,
@@ -67,16 +84,30 @@ def run_one_model(cutoff: str, model: str) -> tuple[str, str, str | None]:
         return model, "", repr(exc)
 
 
-@app.local_entrypoint()
-def run(cutoff: str):
-    results = list(run_one_model.starmap([(cutoff, model) for model in CPU_MODELS]))
-
+def _print_results(results: list[tuple[str, str, str | None]]) -> None:
     failures = [result for result in results if result[2] is not None]
-    for model, metrics_path, error in results:
+
+    for model, path, error in results:
         if error:
             print(f"FAILED {model}: {error}")
         else:
-            print(f"OK {model}: {metrics_path}")
+            print(f"OK {model}: {path}")
 
     if failures:
         raise RuntimeError(f"{len(failures)} CENACE model runs failed")
+
+
+@app.local_entrypoint()
+def forecast(cutoff: str):
+    results = list(
+        run_forecast_model.starmap([(cutoff, model) for model in CPU_MODELS])
+    )
+    _print_results(results)
+
+
+@app.local_entrypoint()
+def evaluate(cutoff: str):
+    results = list(
+        run_evaluation_model.starmap([(cutoff, model) for model in CPU_MODELS])
+    )
+    _print_results(results)
