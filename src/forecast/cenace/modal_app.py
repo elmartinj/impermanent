@@ -1,0 +1,82 @@
+from __future__ import annotations
+
+import modal
+
+CENACE_DATA_ROOT = "/s3-bucket/v0.1.0/cenace"
+
+CPU_MODELS = (
+    "seasonal_naive",
+    "historic_average",
+    "auto_ets",
+    "auto_ces",
+    "dynamic_optimized_theta",
+)
+
+app = modal.App(name="timecopilot-cenace-forecast")
+image = (
+    modal.Image.debian_slim(python_version="3.11")
+    .pip_install("uv")
+    .add_local_file("pyproject.toml", "/root/pyproject.toml", copy=True)
+    .add_local_file(".python-version", "/root/.python-version", copy=True)
+    .add_local_file("uv.lock", "/root/uv.lock", copy=True)
+    .workdir("/root")
+    .run_commands("uv pip install . --system --compile-bytecode")
+)
+
+secret = modal.Secret.from_name(
+    "aws-secret",
+    required_keys=["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"],
+)
+
+volume = {
+    "/s3-bucket": modal.CloudBucketMount(
+        bucket_name="impermanent-benchmark",
+        secret=secret,
+    )
+}
+
+
+@app.function(
+    image=image,
+    volumes=volume,
+    timeout=60 * 30,
+)
+def run_one_model(cutoff: str, model: str) -> tuple[str, str, str | None]:
+    import os
+
+    os.environ["CENACE_DATA_ROOT"] = CENACE_DATA_ROOT
+
+    from src.evaluation.cenace.core import run_evaluation
+    from src.forecast.cenace.core import run_forecast
+
+    try:
+        forecast_path = run_forecast(
+            cutoff=cutoff,
+            model=model,
+            h=24,
+            max_window_size=24 * 30,
+        )
+        metrics_path = run_evaluation(
+            cutoff=cutoff,
+            model=model,
+            h=24,
+            max_window_size=24 * 30,
+        )
+        return model, str(metrics_path), None
+    except Exception as exc:
+        return model, "", repr(exc)
+
+
+@app.local_entrypoint()
+def run(cutoff: str):
+    results = list(run_one_model.starmap([(cutoff, model) for model in CPU_MODELS]))
+
+    failures = [result for result in results if result[2] is not None]
+    for model, metrics_path, error in results:
+        if error:
+            print(f"FAILED {model}: {error}")
+        else:
+            print(f"OK {model}: {metrics_path}")
+
+    if failures:
+        raise RuntimeError(f"{len(failures)} CENACE model runs failed")
