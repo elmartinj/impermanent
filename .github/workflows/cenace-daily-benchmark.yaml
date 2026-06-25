@@ -1,0 +1,49 @@
+name: CENACE daily benchmark
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 8 * * *"
+
+jobs:
+  cenace-daily-benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    env:
+      AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install dependencies
+        run: uv sync --all-groups
+
+      - name: Run CENACE extraction
+        run: uv run python -m src.data.cenace.extract.core
+
+      - name: Transform CENACE data
+        run: uv run python -m src.data.cenace.transform.core
+
+      - name: Aggregate CENACE data
+        run: uv run python -m src.data.cenace.aggregate.core
+
+      - name: Run CENACE forecast
+        run: |
+          uv run python -m src.forecast.cenace.core \
+            --model seasonal_naive_24
+
+      - name: Evaluate CENACE forecast
+        run: |
+          uv run python -m src.evaluation.cenace.core \
+            --model seasonal_naive_24
+
+      - name: Upload CENACE outputs to S3
+        run: |
+          aws s3 sync data/cenace/ \
+            s3://impermanent-benchmark/v0.1.0/cenace/
