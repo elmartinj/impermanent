@@ -51,3 +51,9 @@ $(addprefix validate-evaluate-,$(EV_FREQUENCIES)): validate-evaluate-%:
 .PHONY: leaderboard
 leaderboard: # Build leaderboard parquet from all evaluation parquets
 	$(MODAL) src.evaluation.gh_archive.modal_app::build_leaderboard
+
+## CENACE Data
+
+.PHONY: update-cenace-data
+update-cenace-data:
+	$(MODAL) src.data.cenace.modal_app --execution-date $(EXECUTION_DATE)

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import shutil
+import tempfile
 from pathlib import Path
 
 import pandas as pd
@@ -37,7 +39,9 @@ def write_hourly_partitions(
         part_dir.mkdir(parents=True, exist_ok=True)
 
         out_path = part_dir / "series.parquet"
-        part[["unique_id", "ds", "y"]].to_parquet(out_path, index=False)
+        with tempfile.NamedTemporaryFile(suffix=".parquet") as tmp:
+            part[["unique_id", "ds", "y"]].to_parquet(tmp.name, index=False)
+            shutil.copyfile(tmp.name, out_path)
 
         print(f"Saved: {out_path}")
         n_written += 1
