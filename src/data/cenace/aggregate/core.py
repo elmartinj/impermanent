@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import argparse
+from pathlib import Path
+
 import pandas as pd
 
 from src.data.cenace.config import PROCESSED_CSV, PROCESSED_EVENTS_HOURLY_DIR
@@ -8,8 +11,11 @@ INPUT_CSV = PROCESSED_CSV
 OUTPUT_ROOT = PROCESSED_EVENTS_HOURLY_DIR
 
 
-def build_hourly_partitions() -> int:
-    df = pd.read_csv(INPUT_CSV)
+def write_hourly_partitions(
+    df: pd.DataFrame,
+    output_root: Path = OUTPUT_ROOT,
+) -> int:
+    df = df.copy()
 
     df["ds"] = pd.to_datetime(df["ds"], errors="coerce")
     df["y"] = pd.to_numeric(df["y"], errors="coerce")
@@ -21,12 +27,12 @@ def build_hourly_partitions() -> int:
     df["month"] = df["ds"].dt.month
     df["day"] = df["ds"].dt.day
 
-    OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
+    output_root.mkdir(parents=True, exist_ok=True)
 
     n_written = 0
     for (year, month, day), part in df.groupby(["year", "month", "day"], sort=True):
         part_dir = (
-            OUTPUT_ROOT / f"year={year:04d}" / f"month={month:02d}" / f"day={day:02d}"
+            output_root / f"year={year:04d}" / f"month={month:02d}" / f"day={day:02d}"
         )
         part_dir.mkdir(parents=True, exist_ok=True)
 
@@ -39,8 +45,21 @@ def build_hourly_partitions() -> int:
     return n_written
 
 
+def build_hourly_partitions(
+    input_csv: Path = INPUT_CSV,
+    output_root: Path = OUTPUT_ROOT,
+) -> int:
+    df = pd.read_csv(input_csv)
+    return write_hourly_partitions(df, output_root)
+
+
 def main() -> None:
-    n_written = build_hourly_partitions()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input-csv", type=Path, default=INPUT_CSV)
+    parser.add_argument("--output-root", type=Path, default=OUTPUT_ROOT)
+    args = parser.parse_args()
+
+    n_written = build_hourly_partitions(args.input_csv, args.output_root)
     print(f"\nDone. Wrote {n_written} daily partitions.")
 
 
