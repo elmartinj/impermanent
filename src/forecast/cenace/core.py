@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import shutil
+import tempfile
 from pathlib import Path
 
 import pandas as pd
@@ -62,7 +64,9 @@ def run_forecast(
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / "forecasts.parquet"
 
-    forecasts.to_parquet(out_path, index=False)
+    with tempfile.NamedTemporaryFile(suffix=".parquet") as tmp:
+        forecasts.to_parquet(tmp.name, index=False)
+        shutil.copyfile(tmp.name, out_path)
     return out_path
 
 
