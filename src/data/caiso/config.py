@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import os
 from datetime import date
 from pathlib import Path
 
 from dateutil.relativedelta import relativedelta
 
 ROOT = Path(__file__).resolve().parents[3]
-DATA_ROOT = ROOT / "data" / "caiso"
+DATA_ROOT = Path(os.environ.get("CAISO_DATA_ROOT", ROOT / "data" / "caiso"))
 
 RAW_DIR = DATA_ROOT / "raw"
 TMP_DIR = DATA_ROOT / "tmp"

@@ -53,17 +53,31 @@ def download_node(
         output.unlink(missing_ok=True)
         raise RuntimeError(f"CAISO returned a non-ZIP response for {node}")
 
+    with zipfile.ZipFile(output) as archive:
+        names = archive.namelist()
+        if names and names[0].endswith(".xml"):
+            with archive.open(names[0]) as file:
+                text = file.read().decode("utf-8", errors="replace")
+            if "<m:ERROR>" in text or "<ERR_DESC>" in text:
+                output.unlink(missing_ok=True)
+                message = f"CAISO returned an error response for {node}: {text}"
+                raise RuntimeError(message)
+
     print(f"Downloaded: {output}")
     return output
 
 
-def extract_caiso(start: date, end: date) -> None:
+def extract_caiso(
+    start: date,
+    end: date,
+    output_dir: Path = RAW_DIR,
+) -> None:
     current = start
 
     while current < end:
         chunk_end = min(current + timedelta(days=31), end)
 
-        download_node("CAISO_3_NODES", current, chunk_end)
+        download_node("CAISO_3_NODES", current, chunk_end, output_dir=output_dir)
 
         current = chunk_end
 
